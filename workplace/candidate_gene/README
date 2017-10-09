@@ -1,0 +1,6 @@
+1. prepare a gene_list for candidate genes. It should be included in gtf files.
+2. prepare ref_gene based gtf annotation and hg19.fa
+3. run ../code/mc_site_seek.pl
+4. run ../code/removeOverlap.pl
+5. run ../code/order_list.pl
+
