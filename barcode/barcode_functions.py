@@ -394,11 +394,19 @@ def read_fastq (fq1,fq2,barcode_length = 8):
     '''
     import gzip
     from Bio import SeqIO
+    import time
     barcode_dict = {}
     for fq in [fq1,fq2]:
+        print ("{} Processing {}...").format(str(datetime.datetime.now()) ,str(fq),)
         with gzip.open(fq) as f:
             records = SeqIO.parse(f, "fastq")
+            i = 0
             for record in records:
+                i += 1
+                
+                if(i % 1000000 == 0):
+                    print ("{} Processing reads {} ...").format(str(datetime.datetime.now()) ,str(i))
+
                 seq_id = record.id
                 seq_barcode = str(record.seq)[:barcode_length]
                 if seq_id in barcode_dict.keys():
@@ -443,11 +451,15 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
 #         pysam.sort("-o", bam_file+"sam", bam_file)
     
     import pysam
+    import time
   
     # creat an index for bam file for the purposes of random access 
+    # pysam.index(bam_file) 
+    # instead we use picard tools to sort and index bam files.
+    # Maybe samtools will be quicker?
 
-    pysam.index(bam_file) 
-    
+
+    print ("{} Reading bam files...").format(str(datetime.datetime.now()) )
     f = pysam.AlignmentFile(bam_file,'rb')
     
     barcode_detail_dict = {}
@@ -465,29 +477,38 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
     reads_dict["mm"] = {}
     reads_dict["mu"] = {}
     
+    print ("{} Reading each probe...").format(str(datetime.datetime.now()) )
     for probe in (f.references):
+        print ("{} Processing probe {} ...").format(str(datetime.datetime.now()) ,str(probe))
         barcode_count_pm = {} # both ends mapped to the same ref.
         barcode_count_mm = {} # mate maps to different ref.
         barcode_count_mu = {} # mate unmapped.
         reads = f.fetch(probe)
         sam = []
+        print ("{} Reading reads...").format(str(datetime.datetime.now()) )
+        i = 0
         for read in reads:
+
+            i += 1    
+            if(i % 1000000 == 0):
+                print ("{} Processing reads {} ...").format(str(ime.time()),str(i))
+
             barcode = barcode_dict[read.query_name]
             barcode = tuple(barcode) # list is not hashaable.
-# the reads status could be the following.
-# see http://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.aligned_pairs for details.
-#             read.mate_is_reverse
-#             read.mate_is_unmapped
-#             read.is_unmapped
-#             read.is_duplicate
-#             read.is_paired
-#             read.is_proper_pair
-#             read.is_qcfail
-#             read.is_read1
-#             read.is_read2
-#             read.is_reverse
-#             read.is_secondary
-#            sam.append(str(read))
+            # the reads status could be the following.
+            # ee http://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.aligned_pairs for details.
+            # read.mate_is_reverse
+            # read.mate_is_unmapped
+            # read.is_unmapped
+            # re    ad.is_duplicate
+            # read.is_paired
+            # read.is_proper_pair
+            # read.is_qcfail
+            # read.is_read1
+            # read.is_read2
+            # read.is_reverse
+            # read.is_secondary
+            # sam.append(str(read))
 
             if read.is_proper_pair:
                 if barcode in barcode_count_pm.keys():
@@ -510,8 +531,11 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
                 else:
                     next # don't count unmapped reads since it already counted by its mate.
         # print len(barcode_count.keys())
+        print ("{} Greedy clustering for pm...").format(str(datetime.datetime.now()) )
         barcode_detail_dict['pm'][probe] = greedy_cluster(barcode_count=barcode_count_pm,asc_threshold=50,desc_threshold=50)
+        print ("{} Greedy clustering for mm...").format(str(datetime.datetime.now()) )
         barcode_detail_dict['mm'][probe] = greedy_cluster(barcode_count=barcode_count_mm,asc_threshold=50,desc_threshold=50)
+        print ("{} Greedy clustering for mu...").format(str(datetime.datetime.now()) )
         barcode_detail_dict['mu'][probe] = greedy_cluster(barcode_count=barcode_count_mu,asc_threshold=50,desc_threshold=50)
         
         uniq_barcode_dict['pm'][probe] = len(barcode_detail_dict['pm'][probe].keys())
@@ -582,9 +606,11 @@ def main(bam_file,fq1,fq2):
     import csv
     import pandas as pd
     
+    print ("{} Reading fastq and detecting barcodes...").format(str(datetime.datetime.now()) )
     barcode_dict = read_fastq(fq1,fq2,8)
+
+    print ("{} Processing bam file...").format(str(datetime.datetime.now()) )
     barcode_detail_dict, reads_dict, uniq_barcode_dict = read_bam(bam_file,barcode_dict)
-    
 #     count_df = pd.DataFrame(count)
 #     count_df.to_csv(output)
 #     with open(output, 'wb') as csv_file:
@@ -611,6 +637,8 @@ def main(bam_file,fq1,fq2):
 
 import pandas as pd
 import sys
+import time
+import datetime
 # sam_file = "/Users/cong/Desktop/barcode/SEQ4416_10112.sam"
 # bam_file = "/Users/cong/Desktop/barcode/SEQ4416_10112.bam"
 bam_file = sys.argv[1]
@@ -624,9 +652,13 @@ output_read = sys.argv[4]
 output_barcode = sys.argv[5]
 
 barcode_detail_dict, reads_dict, uniq_barcode_dict = main(bam_file=bam_file,fq1=fq1,fq2=fq2)
+print ("{} Converting to pd frame for reads_dict...").format(str(datetime.datetime.now()) )
 read_df = pd.DataFrame(reads_dict)
+print ("{} Writting to csv for reads_count...").format(str(datetime.datetime.now()) )
 read_df.to_csv(output_read)
+print ("{} Converting to pd frame for barcode_dict...").format(str(datetime.datetime.now()) )
 barcode_df = pd.DataFrame(uniq_barcode_dict)
+print ("{} Writting to csv for barcode_count...").format(str(datetime.datetime.now()) )
 barcode_df.to_csv(output_barcode)
 
 # # In[108]:
