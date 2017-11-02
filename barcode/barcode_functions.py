@@ -395,27 +395,118 @@ def read_fastq (fq1,fq2,barcode_length = 8):
     import gzip
     from Bio import SeqIO
     import time
-    barcode_dict = {}
+
+
+    # for fq in [fq1,fq2]:
+    #     print ("biopython solution...")
+    #     print ("{} Processing {}...").format(str(datetime.datetime.now()) ,str(fq),)
+    #     with gzip.open(fq) as f:
+    #         records = SeqIO.parse(f, "fastq")
+    #         i = 0
+    #         for record in records:
+    #             i += 1
+                
+    #             if(i % 1000 == 0):
+    #                 print ("{} Processing reads {} ...").format(str(datetime.datetime.now()), str(i))
+
+    #             seq_id = record.id
+    #             seq_barcode = str(record.seq)[:barcode_length]
+    #             barcode_dict[seq_id].append(seq_barcode)
+
+    # barcode_dict = {}
+    # for fq in [fq1,fq2]:
+    #     print ("own code solution...")
+    #     print ("{} Processing {}...").format(str(datetime.datetime.now()) ,str(fq),)
+    #     with gzip.open(fq) as f:
+    #         i = 0
+    #         while True:
+    #             i += 1
+    #             if(i % 1000 == 0):
+    #                 print ("{} Processing reads {} ...").format(str(datetime.datetime.now()), str(i))
+
+    #             try:
+    #                 seq_id = f.next().strip("\n")
+    #                 seq = f.next().strip("\n")
+    #                 seq_barcode = seq[:barcode_length]
+
+    #                 tmp = f.next() # skip next two lines.
+    #                 tmp = f.next() 
+                    
+    #                 if seq_id in barcode_dict.keys():
+    #                     barcode_dict[seq_id].append(seq_barcode)
+    #                 else:
+    #                     barcode_dict[seq_id] = []
+    #                     barcode_dict[seq_id].append(seq_barcode)
+    #             except StopIteration:
+    #                 break
+
+    #     barcode_dict = {}
+    # for fq in [fq1,fq2]:
+    #     print ("own code solution with quick dict...")
+    #     print ("{} Processing {}...").format(str(datetime.datetime.now()) ,str(fq),)
+    #     with gzip.open(fq) as f:
+    #         i = 0
+    #         while True:
+    #             i += 1
+    #             if(i % 1000 == 0):
+    #                 print ("{} Processing reads {} ...").format(str(datetime.datetime.now()), str(i))
+
+    #             try:
+    #                 seq_id = f.next().strip("\n")
+    #                 seq = f.next().strip("\n")
+    #                 seq_barcode = seq[:barcode_length]
+
+    #                 tmp = f.next() # skip next two lines.
+    #                 tmp = f.next() 
+    #                 barcode_dict[seq_id] = seq_barcode
+    #             except StopIteration:
+    #                 break
+
+    # barcode_dict = {}
+    # for fq in [fq1,fq2]:
+    #     print ("own code solution without dict...")
+    #     print ("{} Processing {}...").format(str(datetime.datetime.now()) ,str(fq),)
+    #     with gzip.open(fq) as f:
+    #         i = 0
+    #         while True:
+    #             i += 1
+    #             if(i % 1000 == 0):
+    #                 print ("{} Processing reads {} ...").format(str(datetime.datetime.now()), str(i))
+
+    #             try:
+    #                 seq_id = f.next().strip("\n")
+    #                 seq = f.next().strip("\n")
+    #                 seq_barcode = seq[:barcode_length]
+                    
+    #                 tmp = f.next() # skip next two lines.
+    #                 tmp = f.next() 
+    #             except StopIteration:
+    #                 break                   
+
+    from collections import defaultdict
+    barcode_dict = defaultdict(list)
     for fq in [fq1,fq2]:
+        print ("own code solution with defaultdict...")
         print ("{} Processing {}...").format(str(datetime.datetime.now()) ,str(fq),)
         with gzip.open(fq) as f:
-            records = SeqIO.parse(f, "fastq")
             i = 0
-            for record in records:
+            while True:
                 i += 1
-                
                 if(i % 1000000 == 0):
-                    print ("{} Processing reads {} ...").format(str(datetime.datetime.now()) ,str(i))
+                    print ("{} Processing reads {} ...").format(str(datetime.datetime.now()), str(i))
 
-                seq_id = record.id
-                seq_barcode = str(record.seq)[:barcode_length]
-                if seq_id in barcode_dict.keys():
+                try:
+                    seq_id = f.next().split(' ')[0][1:] # id in bam file don't contain char after empty and @.
+                    seq = f.next().strip("\n")
+                    seq_barcode = seq[:barcode_length]
+                    tmp = f.next() # skip next two lines.
+                    tmp = f.next()
                     barcode_dict[seq_id].append(seq_barcode)
-                else:
-                    barcode_dict[seq_id] = []
-                    barcode_dict[seq_id].append(seq_barcode)
-                    
+                except StopIteration:
+                    break  
+
     return barcode_dict
+
 
 
 # In[9]:
@@ -452,6 +543,7 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
     
     import pysam
     import time
+    from collections import defaultdict
   
     # creat an index for bam file for the purposes of random access 
     # pysam.index(bam_file) 
@@ -480,9 +572,9 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
     print ("{} Reading each probe...").format(str(datetime.datetime.now()) )
     for probe in (f.references):
         print ("{} Processing probe {} ...").format(str(datetime.datetime.now()) ,str(probe))
-        barcode_count_pm = {} # both ends mapped to the same ref.
-        barcode_count_mm = {} # mate maps to different ref.
-        barcode_count_mu = {} # mate unmapped.
+        barcode_count_pm = defaultdict(int) # both ends mapped to the same ref.
+        barcode_count_mm = defaultdict(int) # mate maps to different ref.
+        barcode_count_mu = defaultdict(int) # mate unmapped.
         reads = f.fetch(probe)
         sam = []
         print ("{} Reading reads...").format(str(datetime.datetime.now()) )
@@ -491,7 +583,7 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
 
             i += 1    
             if(i % 1000000 == 0):
-                print ("{} Processing reads {} ...").format(str(ime.time()),str(i))
+                print ("{} Processing reads {} ...").format(str(datetime.datetime.now()) ,str(i))
 
             barcode = barcode_dict[read.query_name]
             barcode = tuple(barcode) # list is not hashaable.
@@ -511,23 +603,15 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
             # sam.append(str(read))
 
             if read.is_proper_pair:
-                if barcode in barcode_count_pm.keys():
-                    barcode_count_pm[barcode] += 1
-                else:
-                    barcode_count_pm[barcode] = 1
+                barcode_count_pm[barcode] += 1
+
                 
             else:
                 if not (read.is_unmapped):
                     if read.mate_is_unmapped:
-                        if barcode in barcode_count_mu.keys():
-                            barcode_count_mu[barcode] += 1
-                        else:
-                            barcode_count_mu[barcode] = 1
+                        barcode_count_mu[barcode] += 1
                     else:
-                        if barcode in barcode_count_mm.keys():
-                            barcode_count_mm[barcode] += 1
-                        else:
-                            barcode_count_mm[barcode] = 1
+                        barcode_count_mm[barcode] += 1
                 else:
                     next # don't count unmapped reads since it already counted by its mate.
         # print len(barcode_count.keys())
