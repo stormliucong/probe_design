@@ -280,7 +280,7 @@ def barcode_compare (seq1, seq2, method = "DP"):
 # In[66]:
 
 # function to perform greedy cluster.
-def greedy_cluster (barcode_count, barcode_compare_method = "other", score1_threshold = 6, score2_threshold = 6, desc_threshold = 99999, asc_threshold = 99999):
+def greedy_cluster (barcode_count, barcode_compare_method = "other", parameter):
     '''
     Input: 
     barcode_count is a dictionary. key is the barcode pair, and
@@ -299,7 +299,12 @@ def greedy_cluster (barcode_count, barcode_compare_method = "other", score1_thre
     Output: 
     updated barcode_count.
     '''
-    
+    score1_threshold = parameter['score1_threshold']
+    score2_threshold = parameter['score2_threshold']
+    desc_threshold = parameter['desc_threshold']
+    asc_threshold = parameter['asc_threshold']
+    barcode_compare_method = parameter['barcode_compare_method']
+
     from collections import OrderedDict
 
     barcode_count_asc = OrderedDict(sorted(barcode_count.items(), key=lambda kv: kv[1]))
@@ -616,11 +621,11 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
                     next # don't count unmapped reads since it already counted by its mate.
         # print len(barcode_count.keys())
         print ("{} Greedy clustering for pm...").format(str(datetime.datetime.now()) )
-        barcode_detail_dict['pm'][probe] = greedy_cluster(barcode_count=barcode_count_pm,asc_threshold=50,desc_threshold=50)
+        barcode_detail_dict['pm'][probe] = greedy_cluster(barcode_count=barcode_count_pm,parameter)
         print ("{} Greedy clustering for mm...").format(str(datetime.datetime.now()) )
-        barcode_detail_dict['mm'][probe] = greedy_cluster(barcode_count=barcode_count_mm,asc_threshold=50,desc_threshold=50)
+        barcode_detail_dict['mm'][probe] = greedy_cluster(barcode_count=barcode_count_mm,parameter)
         print ("{} Greedy clustering for mu...").format(str(datetime.datetime.now()) )
-        barcode_detail_dict['mu'][probe] = greedy_cluster(barcode_count=barcode_count_mu,asc_threshold=50,desc_threshold=50)
+        barcode_detail_dict['mu'][probe] = greedy_cluster(barcode_count=barcode_count_mu,parameter)
         
         uniq_barcode_dict['pm'][probe] = len(barcode_detail_dict['pm'][probe].keys())
         uniq_barcode_dict['mm'][probe] = len(barcode_detail_dict['mm'][probe].keys())
@@ -679,7 +684,7 @@ def read_bam (bam_file,barcode_dict, output = 'everything'):
 
 # In[106]:
 
-def main(bam_file,fq1,fq2):
+def main(bam_file,fq1,fq2,parameter):
     
     import time
     from collections import OrderedDict
@@ -694,7 +699,7 @@ def main(bam_file,fq1,fq2):
     barcode_dict = read_fastq(fq1,fq2,8)
 
     print ("{} Processing bam file...").format(str(datetime.datetime.now()) )
-    barcode_detail_dict, reads_dict, uniq_barcode_dict = read_bam(bam_file,barcode_dict)
+    barcode_detail_dict, reads_dict, uniq_barcode_dict = read_bam(bam_file,barcode_dict,parameter)
 #     count_df = pd.DataFrame(count)
 #     count_df.to_csv(output)
 #     with open(output, 'wb') as csv_file:
@@ -735,7 +740,14 @@ output_read = sys.argv[4]
 # output_barcode = "/Users/cong/Desktop/barcode/SEQ4416_40000_barcode_count.csv"
 output_barcode = sys.argv[5]
 
-barcode_detail_dict, reads_dict, uniq_barcode_dict = main(bam_file=bam_file,fq1=fq1,fq2=fq2)
+if len(sys.argv) > 6:
+    parameter = {}
+    for i in range(6,len(sys.argv)):
+        tmp = sys.argv[i].split("=")
+        parameter[tmp[0]] = tmp[1]
+
+
+barcode_detail_dict, reads_dict, uniq_barcode_dict = main(bam_file=bam_file,fq1=fq1,fq2=fq2,parameter=parameter)
 print ("{} Converting to pd frame for reads_dict...").format(str(datetime.datetime.now()) )
 read_df = pd.DataFrame(reads_dict)
 print ("{} Writting to csv for reads_count...").format(str(datetime.datetime.now()) )
