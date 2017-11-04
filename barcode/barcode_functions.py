@@ -280,7 +280,7 @@ def barcode_compare (seq1, seq2, method = "DP"):
 # In[66]:
 
 # function to perform greedy cluster.
-def greedy_cluster (barcode_count, barcode_compare_method = "other", parameter):
+def greedy_cluster (barcode_count, parameter):
     '''
     Input: 
     barcode_count is a dictionary. key is the barcode pair, and
